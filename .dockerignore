@@ -1,0 +1,16 @@
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.git
+.gitignore
+.idea
+.vscode
+.env
+.env.*
+*.log
+*.sqlite3
+certs/*.pem
+tests/__pycache__

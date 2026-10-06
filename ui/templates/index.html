@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AntiBot Fingerprint Prober</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --card-bg: #161b22;
+            --border-color: #30363d;
+            --text-main: #c9d1d9;
+            --text-dim: #8b949e;
+            --accent-green: #2ea043;
+            --accent-red: #da3633;
+            --accent-yellow: #d29922;
+            --accent-blue: #58a6ff;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding: 40px 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        header { margin-bottom: 30px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; }
+        h1 { font-size: 26px; color: #f0f6fc; margin-bottom: 8px; }
+        p.subtitle { color: var(--text-dim); font-size: 14px; }
+        .grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
+        .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; }
+        .score-circle { width: 140px; height: 140px; border-radius: 50%; border: 8px solid var(--border-color); display: flex; align-items: center; justify-content: center; margin: 20px auto; font-size: 36px; font-weight: bold; }
+        .verdict-badge { text-align: center; font-weight: bold; padding: 8px 12px; border-radius: 6px; font-size: 13px; text-transform: uppercase; }
+        .anomalies-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .anomalies-table th, .anomalies-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 13px; }
+        .anomalies-table th { color: var(--text-dim); font-weight: 600; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .badge-CRITICAL { background: rgba(218, 54, 51, 0.2); color: #f85149; border: 1px solid #da3633; }
+        .badge-HIGH { background: rgba(210, 153, 34, 0.2); color: #e3b341; border: 1px solid #d29922; }
+        .badge-MEDIUM { background: rgba(88, 166, 255, 0.2); color: #79c0ff; border: 1px solid #388bfd; }
+        .badge-LOW { background: rgba(139, 148, 158, 0.2); color: #8b949e; border: 1px solid #6e7681; }
+        .advice { color: #56d364; font-family: monospace; font-size: 12px; display: block; margin-top: 4px; }
+        #status-bar { font-size: 13px; color: var(--accent-blue); margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AntiBot Fingerprint Prober</h1>
+            <p class="subtitle">Локальный диагностический стенд для тестирования качества маскировки автоматизированных браузеров</p>
+        </header>
+
+        <div id="status-bar">Инициализация клиентских зондов...</div>
+
+        <div class="grid">
+            <div class="card">
+                <h3 style="font-size: 16px; margin-bottom: 10px;">Stealth Score</h3>
+                <div class="score-circle" id="score-display">--</div>
+                <div class="verdict-badge" id="verdict-display">ОЖИДАНИЕ ТЕСТА</div>
+                <div style="margin-top: 20px; font-size: 12px; color: var(--text-dim);">
+                    <div>Критических багов: <span id="crit-count" style="color: #f0f6fc; font-weight: bold;">0</span></div>
+                    <div>Штрафные баллы: <span id="penalty-count" style="color: #f0f6fc; font-weight: bold;">0</span></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 style="font-size: 16px; margin-bottom: 5px;">Обнаруженные утечки и аномалии</h3>
+                <div style="overflow-x: auto;">
+                    <table class="anomalies-table">
+                        <thead>
+                            <tr>
+                                <th>Уровень</th>
+                                <th>Маркер</th>
+                                <th>Штраф</th>
+                                <th>Рекомендация по исправлению</th>
+                            </tr>
+                        </thead>
+                        <tbody id="anomalies-body">
+                            <tr>
+                                <td colspan="4" style="text-align: center; color: var(--text-dim);">Выполняется сканирование браузерной среды...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        {{ js_script | safe }}
+
+        async function startDiagnostic() {
+            const statusEl = document.getElementById('status-bar');
+            statusEl.innerText = 'Снятие отпечатков L7 / WebGL / Canvas / WebWorker / CDP...';
+
+            const payload = await runBotProbes();
+            statusEl.innerText = 'Данные собраны. Передача на сервер анализа...';
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const socketUrl = `${protocol}//${window.location.host}/ws/live`;
+            const socket = new WebSocket(socketUrl);
+
+            socket.onopen = function() {
+                socket.send(JSON.stringify(payload));
+                statusEl.innerText = 'Анализ завершен сервером.';
+            };
+
+            socket.onmessage = function(event) {
+                const assessment = JSON.parse(event.data);
+                renderReport(assessment);
+            };
+
+            socket.onerror = function() {
+                statusEl.innerText = 'Сбой сокет-соединения с бэкендом.';
+            };
+        }
+
+        function renderReport(data) {
+            const scoreEl = document.getElementById('score-display');
+            const verdictEl = document.getElementById('verdict-display');
+            const critEl = document.getElementById('crit-count');
+            const penEl = document.getElementById('penalty-count');
+            const bodyEl = document.getElementById('anomalies-body');
+
+            scoreEl.innerText = `${data.stealth_score}%`;
+            critEl.innerText = data.critical_triggers_count;
+            penEl.innerText = `-${data.total_penalties} pts`;
+            verdictEl.innerText = data.status;
+
+            if (data.stealth_score >= 85) {
+                scoreEl.style.borderColor = 'var(--accent-green)';
+                scoreEl.style.color = 'var(--accent-green)';
+                verdictEl.style.background = 'rgba(46, 160, 67, 0.2)';
+                verdictEl.style.color = '#3fb950';
+            } else if (data.stealth_score >= 50) {
+                scoreEl.style.borderColor = 'var(--accent-yellow)';
+                scoreEl.style.color = 'var(--accent-yellow)';
+                verdictEl.style.background = 'rgba(210, 153, 34, 0.2)';
+                verdictEl.style.color = '#e3b341';
+            } else {
+                scoreEl.style.borderColor = 'var(--accent-red)';
+                scoreEl.style.color = 'var(--accent-red)';
+                verdictEl.style.background = 'rgba(218, 54, 51, 0.2)';
+                verdictEl.style.color = '#f85149';
+            }
+
+            bodyEl.innerHTML = '';
+            if (data.anomalies.length === 0) {
+                bodyEl.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #3fb950; font-weight: bold;">Идеально! Браузер не имеет признаков автоматизации.</td></tr>';
+                return;
+            }
+
+            data.anomalies.forEach(a => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><span class="badge badge-${a.severity}">${a.severity}</span></td>
+                    <td><strong>${a.title}</strong><div style="color: var(--text-dim); font-size: 11px;">${a.description}</div></td>
+                    <td style="color: #f85149; font-weight: bold;">-${a.penalty}</td>
+                    <td><span class="advice">${a.recommendation}</span></td>
+                `;
+                bodyEl.appendChild(tr);
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', startDiagnostic);
+    </script>
+</body>
+</html>

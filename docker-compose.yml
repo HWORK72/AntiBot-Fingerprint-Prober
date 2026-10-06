@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: antibot-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: antibot_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - antibot_pgdata:/var/lib/postgresql/data
+    networks:
+      - antibot-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d antibot_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:alpine
+    container_name: antibot-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - antibot_redisdata:/data
+    networks:
+      - antibot-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: antibot-app
+    restart: unless-stopped
+    environment:
+      APP_NAME: "AntiBot-Fingerprint-Prober"
+      APP_ENV: "production"
+      DEBUG: "False"
+      SERVER_HOST: "0.0.0.0"
+      HTTP_PORT: 8000
+      TLS_PROBER_PORT: 8443
+      LOG_LEVEL: "INFO"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_HOST: "db"
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: "antibot_db"
+      REDIS_HOST: "redis"
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+    ports:
+      - "8000:8000"
+      - "8443:8443"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - antibot-net
+
+volumes:
+  antibot_pgdata:
+  antibot_redisdata:
+
+networks:
+  antibot-net:
+    driver: bridge

@@ -101,11 +101,11 @@ class ScoringEngine:
             stealth_score = min(stealth_score, 10)
 
         if stealth_score >= 85:
-            status_verdict: str = "UNDETECTED (Отличная маскировка)"
+            status_verdict: str = "UNDETECTED (Optimal Masking)"
         elif stealth_score >= 50:
-            status_verdict: str = "SUSPICIOUS (Высокий риск капчи/подозрений)"
+            status_verdict: str = "SUSPICIOUS (High Anomaly Risk)"
         else:
-            status_verdict: str = "BUSTED (Бот полностью раскрыт / Мгновенный бан)"
+            status_verdict: str = "BUSTED (Immediate Flag / High Risk)"
 
         return StealthAssessment(
             stealth_score=stealth_score,

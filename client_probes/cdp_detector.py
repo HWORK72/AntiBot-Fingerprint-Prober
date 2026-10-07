@@ -14,17 +14,17 @@ class CDPAnalyzer:
         anomalies: list[str] = []
 
         if report.runtime_enable_leaks:
-            anomalies.append("Обнаружена утечка вызова Runtime.enable (активный Chrome DevTools Protocol)")
+            anomalies.append("Captured CDP 'Runtime.enable' call side-effects in V8 inspector")
 
         if report.cdc_markers_found:
             markers_str: str = ", ".join(report.cdc_markers_found)
-            anomalies.append(f"Найдены скрытые маркеры автоматизации ChromeDriver/Selenium: [{markers_str}]")
+            anomalies.append(f"ChromeDriver / Selenium element cache properties detected: [{markers_str}]")
 
         if report.stack_trace_anomaly:
-            anomalies.append("Аномалия генерации стека вызовов Error.prepareStackTrace (признак инъекции раннера)")
+            anomalies.append("V8 Error.prepareStackTrace call-stack generation anomaly detected")
 
         if report.native_fn_tampered:
-            anomalies.append("Подделка Function.prototype.toString (попытка скрыть проксирование нативных API)")
+            anomalies.append("Function.prototype.toString tampering detected (hooked native API)")
 
         return CDPVerdict(
             is_bot_detected=len(anomalies) > 0,

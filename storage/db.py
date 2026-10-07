@@ -37,7 +37,7 @@ class DatabaseSessionManager:
                 class_=AsyncSession
             )
         except Exception as exc:
-            logger.warning(f"Инициализация конфигуратора PostgreSQL завершилась с ошибкой: {exc}")
+            logger.warning(f"PostgreSQL configuration initialization error: {exc}")
 
     async def create_tables(self) -> bool:
         if not self.engine:
@@ -46,10 +46,10 @@ class DatabaseSessionManager:
             async with self.engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
             self.is_connected = True
-            logger.info("Схема таблиц PostgreSQL успешно синхронизирована.")
+            logger.info("PostgreSQL schema successfully synchronized.")
             return True
         except Exception as exc:
-            logger.warning(f"PostgreSQL недоступен ({exc}). Система переходит в автономный режим без дисковой персистентности.")
+            logger.warning(f"PostgreSQL unreachable ({exc}). Operating in graceful fallback mode without persistence.")
             self.is_connected = False
             return False
 
@@ -61,7 +61,7 @@ class DatabaseSessionManager:
                 yield session
             except Exception as exc:
                 await session.rollback()
-                logger.error(f"Сбой транзакции БД: {exc}", exc_info=True)
+                logger.error(f"Database transaction failure: {exc}", exc_info=True)
                 raise
             finally:
                 await session.close()
@@ -69,7 +69,7 @@ class DatabaseSessionManager:
     async def close(self) -> None:
         if self.engine:
             await self.engine.dispose()
-            logger.info("Пул соединений PostgreSQL освобожден.")
+            logger.info("PostgreSQL connection pool disposed.")
 
 
 db_manager: DatabaseSessionManager = DatabaseSessionManager()

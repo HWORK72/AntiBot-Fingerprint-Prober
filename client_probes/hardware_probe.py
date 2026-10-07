@@ -32,17 +32,17 @@ class HardwareAnalyzer:
         for needle in SUSPICIOUS_RENDERERS:
             if needle in renderer_lower or needle in vendor_lower:
                 is_vm = True
-                anomalies.append(f"Программная эмуляция GPU в WebGL: '{webgl.unmasked_renderer}' (признак Headless браузера на сервере)")
+                anomalies.append(f"Software WebGL emulation renderer detected: '{webgl.unmasked_renderer}' (Headless server)")
                 break
 
         if webgl.extensions_count < 10 and webgl.unmasked_renderer != "":
-            anomalies.append(f"Подозрительно малое количество WebGL-расширений ({webgl.extensions_count})")
+            anomalies.append(f"Suspiciously low WebGL supported extensions count ({webgl.extensions_count})")
 
         if canvas.noise_detected:
-            anomalies.append("Обнаружен искусственный шум в Canvas (Canvas Fingerprint Poisoning)")
+            anomalies.append("Dynamic canvas noise randomization detected (Canvas Poisoning)")
 
         if audio.sample_rate not in (44100.0, 48000.0, 96000.0) and audio.sample_rate != 0.0:
-            anomalies.append(f"Аномальная частота AudioContext ({audio.sample_rate} Hz)")
+            anomalies.append(f"Anomalous AudioContext sample rate ({audio.sample_rate} Hz)")
 
         return HardwareVerdict(
             is_virtual_hardware=is_vm,

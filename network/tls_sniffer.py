@@ -85,7 +85,7 @@ class TLSSnifferProxy:
             self.listen_host,
             self.listen_port
         )
-        logger.info(f"TLS-инспектор активен на [bold cyan]https://{self.listen_host}:{self.listen_port}[/bold cyan] -> Relay на :{self.target_port}")
+        logger.info(f"TLS prober active on [bold cyan]https://{self.listen_host}:{self.listen_port}[/bold cyan] -> Relay to :{self.target_port}")
 
     async def stop(self) -> None:
         if self.server:

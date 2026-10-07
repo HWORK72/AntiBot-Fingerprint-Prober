@@ -46,7 +46,8 @@ async def submit_probe(
     TerminalPresenter.render_assessment(
         assessment=assessment,
         user_agent=ua,
-        client_ip=client_ip
+        client_ip=client_ip,
+        tls=tls_info
     )
 
     background_tasks.add_task(
@@ -82,7 +83,8 @@ async def inspect_fast(
     TerminalPresenter.render_assessment(
         assessment=assessment,
         user_agent=ua,
-        client_ip=client_ip
+        client_ip=client_ip,
+        tls=tls_info
     )
 
     background_tasks.add_task(

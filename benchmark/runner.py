@@ -61,7 +61,7 @@ class BotBenchmarkRunner:
             })
 
         except Exception as exc:
-            logger.error(f"Сбой при выполнении теста {test_name}: {exc}", exc_info=True)
+            logger.error(f"Execution failure during test {test_name}: {exc}", exc_info=True)
             self.results.append({
                 "bot_name": test_name,
                 "type": "Network (TLS/JA4)",
@@ -133,7 +133,7 @@ class BotBenchmarkRunner:
                 })
 
         except Exception as exc:
-            logger.error(f"Сбой при выполнении теста {test_name}: {exc}", exc_info=True)
+            logger.error(f"Execution failure during test {test_name}: {exc}", exc_info=True)
             self.results.append({
                 "bot_name": test_name,
                 "type": "Browser (JS Runtime)",
@@ -145,19 +145,19 @@ class BotBenchmarkRunner:
 
     def render_benchmark_summary(self) -> None:
         console.print()
-        console.print(Panel("[bold cyan]РЕЗУЛЬТАТЫ СРАВНИТЕЛЬНОГО БЕНЧМАРКА АНТИДЕТЕКТ-МАСКИРОВКИ[/bold cyan]", border_style="cyan"))
+        console.print(Panel("[bold cyan]STEALTH & ANTI-DETECT BENCHMARK REPORT[/bold cyan]", border_style="cyan"))
 
         table: Table = Table(
-            title="Сводная диагностическая таблица ботов",
+            title="Head-to-Head Client Stealth Diagnostics",
             header_style="bold magenta",
             show_lines=True
         )
 
-        table.add_column("Бот / Стек Клиента", style="white", width=30)
-        table.add_column("Уровень Проверки", style="cyan", width=24)
+        table.add_column("Bot / Client Stack", style="white", width=30)
+        table.add_column("Inspection Scope", style="cyan", width=24)
         table.add_column("Stealth Score", justify="center", width=14)
-        table.add_column("Критических Детектов", justify="center", width=16)
-        table.add_column("Вердикт Антифрода", style="bold", width=32)
+        table.add_column("Critical Triggers", justify="center", width=16)
+        table.add_column("Anti-Fraud Verdict", style="bold", width=32)
 
         for res in self.results:
             score: int = res["score"]
@@ -186,26 +186,26 @@ class BotBenchmarkRunner:
         console.print()
 
     async def execute_all(self) -> None:
-        logger.info(f"Проверка доступности диагностического сервера по адресу {self.http_base_url}...")
+        logger.info(f"Auditing prober availability at {self.http_base_url}...")
         is_ready: bool = await self.check_server_readiness()
 
         if not is_ready:
             logger.critical(
-                f"Диагностический сервер на {self.http_base_url} недоступен. "
-                "Запустите сервер (Shift+F10 на main.py) перед стартом бенчмарка!"
+                f"Diagnostic server at {self.http_base_url} is unreachable. "
+                "Launch the main server via 'python main.py' prior to running benchmarks!"
             )
             return
 
-        logger.info("[bold cyan]>>> Запуск Теста 1: Стандартный Python HTTP клиент (без маскировок)[/bold cyan]")
+        logger.info("[bold cyan]>>> Executing Test 1: Standard Python HTTP Client (Unmasked)[/bold cyan]")
         await self.run_curl_cffi_test(impersonate_target=None, test_name="Python Vanilla Client")
 
-        logger.info("[bold cyan]>>> Запуск Теста 2: curl_cffi с имперсонацией Chrome 124 (TLS/JA4 Spoofing)[/bold cyan]")
+        logger.info("[bold cyan]>>> Executing Test 2: curl_cffi with Chrome 124 Impersonation (TLS/JA4 Spoofing)[/bold cyan]")
         await self.run_curl_cffi_test(impersonate_target="chrome124", test_name="curl_cffi (Chrome 124)")
 
-        logger.info("[bold cyan]>>> Запуск Теста 3: Playwright Chromium (Стандартный Headless)[/bold cyan]")
+        logger.info("[bold cyan]>>> Executing Test 3: Playwright Chromium (Standard Headless)[/bold cyan]")
         await self.run_playwright_test(stealth_mode=False, test_name="Playwright Vanilla Headless")
 
-        logger.info("[bold cyan]>>> Запуск Теста 4: Playwright Chromium (Advanced Anti-Detect Patched)[/bold cyan]")
+        logger.info("[bold cyan]>>> Executing Test 4: Playwright Chromium (Advanced Anti-Detect Patched)[/bold cyan]")
         await self.run_playwright_test(stealth_mode=True, test_name="Playwright Stealth Patched")
 
         self.render_benchmark_summary()

@@ -52,10 +52,10 @@ class TCPOpticalAnalyzer:
 
             if claimed_os == "Windows" and initial_ttl == 64:
                 is_mismatch = True
-                details = f"Аномалия TCP/IP: User-Agent заявляет Windows, но сетевой стек ядра Linux (Initial TTL=64, Observed TTL={observed_ttl})"
+                details = f"TCP/IP Stack Anomaly: User-Agent claims Windows, but IP initial TTL indicates Linux kernel (Initial TTL=64, Observed={observed_ttl})"
             elif claimed_os in ("Linux", "macOS", "Android") and initial_ttl == 128:
                 is_mismatch = True
-                details = f"Аномалия TCP/IP: User-Agent заявляет {claimed_os}, но сетевой стек ядра Windows (Initial TTL=128, Observed TTL={observed_ttl})"
+                details = f"TCP/IP Stack Anomaly: User-Agent claims {claimed_os}, but IP initial TTL indicates Windows kernel (Initial TTL=128, Observed={observed_ttl})"
 
             return TCPMetrics(
                 observed_ttl=observed_ttl,
@@ -67,7 +67,7 @@ class TCPOpticalAnalyzer:
             )
 
         except Exception as exc:
-            logger.error(f"Ошибка пассивного анализа TCP TTL: {exc}", exc_info=True)
+            logger.error(f"Error during passive TCP TTL audit: {exc}", exc_info=True)
             return TCPMetrics(
                 observed_ttl=observed_ttl,
                 estimated_initial_ttl=observed_ttl,

@@ -22,9 +22,9 @@ class EphemeralStateBroker:
             )
             await self.redis_client.ping()
             self.is_connected = True
-            logger.info(f"Подключение к Redis успешно: {settings.redis_host}:{settings.redis_port}")
+            logger.info(f"Connected to Redis broker at {settings.redis_host}:{settings.redis_port}")
         except Exception as exc:
-            logger.warning(f"Redis сервер недоступен ({exc}). Активирован локальный in-memory буфер.")
+            logger.warning(f"Redis host unreachable ({exc}). Falling back to local in-memory buffer.")
             self.is_connected = False
             self.redis_client = None
 
@@ -37,7 +37,7 @@ class EphemeralStateBroker:
                 await self.redis_client.set(key, serialized, ex=ttl_seconds)
                 return
             except Exception as exc:
-                logger.error(f"Сбой записи в Redis: {exc}")
+                logger.error(f"Redis write error: {exc}")
 
         self._fallback_cache[key] = serialized
 
@@ -49,7 +49,7 @@ class EphemeralStateBroker:
             try:
                 raw_json = await self.redis_client.get(key)
             except Exception as exc:
-                logger.error(f"Сбой чтения из Redis: {exc}")
+                logger.error(f"Redis read error: {exc}")
 
         if not raw_json:
             raw_json = self._fallback_cache.get(key)
@@ -61,13 +61,13 @@ class EphemeralStateBroker:
             data = json.loads(raw_json)
             return TLSFingerprint.model_validate(data)
         except Exception as exc:
-            logger.error(f"Сбой десериализации отпечатка TLS: {exc}")
+            logger.error(f"TLS fingerprint deserialization error: {exc}")
             return None
 
     async def close(self) -> None:
         if self.redis_client:
             await self.redis_client.close()
-            logger.info("Соединение с Redis корректно закрыто.")
+            logger.info("Redis broker connection cleanly closed.")
 
 
 state_broker: EphemeralStateBroker = EphemeralStateBroker()

@@ -7,48 +7,48 @@ class RemediationAdvisor:
     def get_advice(rule_id: str) -> str:
         advice_map: dict[str, str] = {
             "WEBDRIVER_ACTIVE": (
-                "Запустите Chromium с аргументом '--disable-blink-features=AutomationControlled' "
-                "или используйте библиотеку stealth для очистки флага."
+                "Launch Chromium with flag '--disable-blink-features=AutomationControlled' "
+                "or apply an evasion shim to patch the descriptor before DOM loading."
             ),
             "CDP_RUNTIME_ENABLE": (
-                "Используйте изолированный ExecutionContext для инъекций или пропатчите CDP-транспорт, "
-                "чтобы события Runtime.enable не триггерили инспекцию стека вызовов в V8."
+                "Use isolated ExecutionContexts for evaluations or patch the CDP transport layer "
+                "so Runtime.enable events do not trigger prepareStackTrace inspection hooks in V8."
             ),
             "CDP_CDC_MARKERS": (
-                "Откройте бинарник chromedriver в hex-редакторе и замените подстроку 'cdc_' "
-                "на случайные символы равной длины, либо перейдите на Playwright с кастомным CDP."
+                "Patch the ChromeDriver binary in a hex editor replacing 'cdc_' prefixes "
+                "with randomized alphanumeric sequences, or transition to Playwright with custom CDP."
             ),
             "VIRTUAL_GPU_SWIFTSHADER": (
-                "Запускайте браузер на хосте с реальной видеокартой или пробросьте GPU флаги: "
-                "'--use-gl=angle', '--use-angle=default'. На Linux настройте виртуальный X-сервер (Xvfb) с аппаратным ускорением."
+                "Execute the browser on hardware with a physical/integrated GPU, or pass: "
+                "'--use-gl=angle', '--use-angle=default'. On Linux servers configure a hardware-accelerated Xvfb buffer."
             ),
             "TLS_GREASE_ABSENT_CHROME": (
-                "Используйте curl_cffi с параметром impersonate='chrome124' вместо requests/httpx "
-                "для полной эмуляции TLS Client Hello с добавлением GREASE и правильного набора шифров."
+                "Use curl_cffi with impersonate='chrome124' instead of requests/httpx "
+                "for bit-for-bit TLS Client Hello emulation including GREASE and cipher priority lists."
             ),
             "H2_PSEUDO_ORDER_ANOMALY": (
-                "При прямых HTTP/2 запросах зафиксируйте порядок псевдо-заголовков strictly как ':method', ':authority', ':scheme', ':path'. "
-                "В curl_cffi это поведение уже реализовано в движке curl-impersonate."
+                "Enforce strict HTTP/2 pseudo-header serialization: ':method', ':authority', ':scheme', ':path'. "
+                "In curl_cffi this ordering is handled natively by the curl-impersonate backend."
             ),
             "WORKER_UA_MISMATCH": (
-                "Внедрите перехват конструктора 'window.Worker' через Proxy, чтобы передавать "
-                "подмененный User-Agent и параметры оборудования внутрь фонового потока."
+                "Hook 'window.Worker' constructor via Proxy to inject the overridden User-Agent "
+                "and hardwareConcurrency parameters into child worker execution contexts."
             ),
             "NATIVE_FN_TAMPERED": (
-                "Не используйте кустарные заглушки для нативных функций. Используйте Proxy с корректным "
-                "переопределением дескрипторов и нативным выводом toString."
+                "Avoid naive prototype overrides. Use Proxy handlers with accurate descriptor definitions "
+                "and native-matching Function.prototype.toString outputs."
             ),
             "TCP_OS_MISMATCH": (
-                "Если бот запущен на сервере Linux, измените дефолтный TTL пакетов командой: "
-                "'sudo sysctl -w net.ipv4.ip_default_ttl=128', чтобы ядро отправляло пакеты как Windows."
+                "When hosting scrapers on Linux servers pretending to be Windows, modify outbound packet TTL: "
+                "'sudo sysctl -w net.ipv4.ip_default_ttl=128' to match the NT kernel network stack."
             ),
             "CANVAS_POISONING": (
-                "Отключите плагины псевдо-рандомизации Canvas (Fingerprint Defender и аналоги). "
-                "Статический отпечаток конкретного железа всегда безопаснее, чем шум с плавающим хэшем."
+                "Disable canvas noise randomizers (e.g. Fingerprint Defender extensions). "
+                "A stable, consistent hardware canvas hash is significantly safer than unstable dynamic noise."
             ),
             "ZERO_PLUGINS": (
-                "Сэмулируйте объект navigator.plugins и mimeTypes в соответствии со спецификацией Chrome PDF Viewer."
+                "Mock navigator.plugins and navigator.mimeTypes arrays adhering to official Chrome PDF Viewer specs."
             ),
         }
 
-        return advice_map.get(rule_id, "Изучите документацию антифрод-системы для устранения данной аномалии.")
+        return advice_map.get(rule_id, "Review anti-bot diagnostic documentation to mitigate this anomaly.")

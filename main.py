@@ -61,7 +61,7 @@ async def start_dual_stack() -> None:
 
         logger.info(f"Web Dashboard (HTTP): [bold cyan]http://{settings.server_host}:{settings.http_port}[/bold cyan]")
         logger.info(f"TLS Prober Gate (HTTPS): [bold green]https://{settings.server_host}:{settings.tls_prober_port}[/bold green]")
-        logger.info("Система готова к анализу ботов на всех уровнях (L4-L7 + JS + Storage).")
+        logger.info("System operational across all layers (L4-L7 + JS Runtime + Storage).")
 
         await asyncio.gather(
             http_server.serve(),
@@ -69,7 +69,7 @@ async def start_dual_stack() -> None:
         )
 
     except Exception as exc:
-        logger.critical(f"Критический сбой сервиса: {exc}", exc_info=True)
+        logger.critical(f"Fatal service initialization failure: {exc}", exc_info=True)
     finally:
         await state_broker.close()
         await db_manager.close()
@@ -80,7 +80,7 @@ def main_entry() -> None:
     try:
         asyncio.run(start_dual_stack())
     except KeyboardInterrupt:
-        logger.info("Сервер штатно остановлен пользователем.")
+        logger.info("Server gracefully terminated by user.")
 
 
 if __name__ == "__main__":

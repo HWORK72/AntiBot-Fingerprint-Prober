@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,14 +18,16 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
         body { background-color: var(--bg-color); color: var(--text-main); padding: 40px 20px; }
-        .container { max-width: 1000px; margin: 0 auto; }
+        .container { max-width: 1080px; margin: 0 auto; }
         header { margin-bottom: 30px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; }
         h1 { font-size: 26px; color: #f0f6fc; margin-bottom: 8px; }
         p.subtitle { color: var(--text-dim); font-size: 14px; }
-        .grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
+        .grid { display: grid; grid-template-columns: 340px 1fr; gap: 20px; }
         .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; }
         .score-circle { width: 140px; height: 140px; border-radius: 50%; border: 8px solid var(--border-color); display: flex; align-items: center; justify-content: center; margin: 20px auto; font-size: 36px; font-weight: bold; }
         .verdict-badge { text-align: center; font-weight: bold; padding: 8px 12px; border-radius: 6px; font-size: 13px; text-transform: uppercase; }
+        .telemetry-box { margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-color); font-size: 12px; color: var(--text-dim); line-height: 1.7; word-break: break-all; }
+        .telemetry-val { color: #79c0ff; font-family: monospace; }
         .anomalies-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         .anomalies-table th, .anomalies-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 13px; }
         .anomalies-table th { color: var(--text-dim); font-weight: 600; }
@@ -42,37 +44,41 @@
     <div class="container">
         <header>
             <h1>AntiBot Fingerprint Prober</h1>
-            <p class="subtitle">Локальный диагностический стенд для тестирования качества маскировки автоматизированных браузеров</p>
+            <p class="subtitle">Multi-layer local diagnostic testbed for TLS (JA3/JA4), Lua L7 heuristics, and JS runtime telemetry</p>
         </header>
 
-        <div id="status-bar">Инициализация клиентских зондов...</div>
+        <div id="status-bar">Initializing client runtime probes...</div>
 
         <div class="grid">
             <div class="card">
                 <h3 style="font-size: 16px; margin-bottom: 10px;">Stealth Score</h3>
-                <div class="score-circle" id="score-display">--</div>
-                <div class="verdict-badge" id="verdict-display">ОЖИДАНИЕ ТЕСТА</div>
-                <div style="margin-top: 20px; font-size: 12px; color: var(--text-dim);">
-                    <div>Критических багов: <span id="crit-count" style="color: #f0f6fc; font-weight: bold;">0</span></div>
-                    <div>Штрафные баллы: <span id="penalty-count" style="color: #f0f6fc; font-weight: bold;">0</span></div>
+                <div class="score-circle" id="score-display" data-ready="false">--</div>
+                <div class="verdict-badge" id="verdict-display">AWAITING PROBE</div>
+                <div class="telemetry-box">
+                    <div>Critical Triggers: <span id="crit-count" style="color: #f0f6fc; font-weight: bold;">0</span></div>
+                    <div>Total Penalties: <span id="penalty-count" style="color: #f0f6fc; font-weight: bold;">0</span></div>
+                    <div style="margin-top: 10px;">JA3 Hash: <span id="ja3-display" class="telemetry-val">--</span></div>
+                    <div>JA4 Print: <span id="ja4-display" class="telemetry-val">--</span></div>
+                    <div>GREASE (RFC 8701): <span id="grease-display" class="telemetry-val">--</span></div>
+                    <div>Lua Profile: <span id="lua-display" class="telemetry-val">--</span></div>
                 </div>
             </div>
 
             <div class="card">
-                <h3 style="font-size: 16px; margin-bottom: 5px;">Обнаруженные утечки и аномалии</h3>
+                <h3 style="font-size: 16px; margin-bottom: 5px;">Detected Leaks & Fingerprint Anomalies</h3>
                 <div style="overflow-x: auto;">
                     <table class="anomalies-table">
                         <thead>
                             <tr>
-                                <th>Уровень</th>
-                                <th>Маркер</th>
-                                <th>Штраф</th>
-                                <th>Рекомендация по исправлению</th>
+                                <th>Severity</th>
+                                <th>Anomaly / Vector</th>
+                                <th>Penalty</th>
+                                <th>Remediation Directive</th>
                             </tr>
                         </thead>
                         <tbody id="anomalies-body">
                             <tr>
-                                <td colspan="4" style="text-align: center; color: var(--text-dim);">Выполняется сканирование браузерной среды...</td>
+                                <td colspan="4" style="text-align: center; color: var(--text-dim);">Scanning browser runtime environment...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -86,10 +92,10 @@
 
         async function startDiagnostic() {
             const statusEl = document.getElementById('status-bar');
-            statusEl.innerText = 'Снятие отпечатков L7 / WebGL / Canvas / WebWorker / CDP...';
+            statusEl.innerText = 'Extracting L7 / WebGL / Audio / Canvas / WebWorker / CDP telemetry...';
 
             const payload = await runBotProbes();
-            statusEl.innerText = 'Данные собраны. Передача на сервер анализа...';
+            statusEl.innerText = 'Telemetry collected. Streaming to diagnostic backend...';
 
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const socketUrl = `${protocol}//${window.location.host}/ws/live`;
@@ -97,16 +103,17 @@
 
             socket.onopen = function() {
                 socket.send(JSON.stringify(payload));
-                statusEl.innerText = 'Анализ завершен сервером.';
+                statusEl.innerText = 'Evaluation completed by server.';
             };
 
             socket.onmessage = function(event) {
                 const assessment = JSON.parse(event.data);
                 renderReport(assessment);
+                socket.close();
             };
 
             socket.onerror = function() {
-                statusEl.innerText = 'Сбой сокет-соединения с бэкендом.';
+                statusEl.innerText = 'WebSocket diagnostic channel error.';
             };
         }
 
@@ -115,12 +122,21 @@
             const verdictEl = document.getElementById('verdict-display');
             const critEl = document.getElementById('crit-count');
             const penEl = document.getElementById('penalty-count');
+            const ja3El = document.getElementById('ja3-display');
+            const ja4El = document.getElementById('ja4-display');
+            const greaseEl = document.getElementById('grease-display');
+            const luaEl = document.getElementById('lua-display');
             const bodyEl = document.getElementById('anomalies-body');
 
             scoreEl.innerText = `${data.stealth_score}%`;
             critEl.innerText = data.critical_triggers_count;
             penEl.innerText = `-${data.total_penalties} pts`;
             verdictEl.innerText = data.status;
+
+            ja3El.innerText = data.tls_ja3 || 'N/A';
+            ja4El.innerText = data.tls_ja4 || 'N/A';
+            greaseEl.innerText = data.tls_grease !== null ? String(data.tls_grease) : 'N/A';
+            luaEl.innerText = data.lua_profile || 'N/A';
 
             if (data.stealth_score >= 85) {
                 scoreEl.style.borderColor = 'var(--accent-green)';
@@ -141,20 +157,22 @@
 
             bodyEl.innerHTML = '';
             if (data.anomalies.length === 0) {
-                bodyEl.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #3fb950; font-weight: bold;">Идеально! Браузер не имеет признаков автоматизации.</td></tr>';
-                return;
+                bodyEl.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #3fb950; font-weight: bold;">Optimal. No automation signatures detected.</td></tr>';
+            } else {
+                data.anomalies.forEach(a => {
+                    const tr = document.createElement('tr');
+                    tr.setAttribute('data-anomaly', 'true');
+                    tr.innerHTML = `
+                        <td><span class="badge badge-${a.severity}">${a.severity}</span></td>
+                        <td><strong>${a.title}</strong><div style="color: var(--text-dim); font-size: 11px;">${a.description}</div></td>
+                        <td style="color: #f85149; font-weight: bold;">-${a.penalty}</td>
+                        <td><span class="advice">${a.recommendation}</span></td>
+                    `;
+                    bodyEl.appendChild(tr);
+                });
             }
 
-            data.anomalies.forEach(a => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><span class="badge badge-${a.severity}">${a.severity}</span></td>
-                    <td><strong>${a.title}</strong><div style="color: var(--text-dim); font-size: 11px;">${a.description}</div></td>
-                    <td style="color: #f85149; font-weight: bold;">-${a.penalty}</td>
-                    <td><span class="advice">${a.recommendation}</span></td>
-                `;
-                bodyEl.appendChild(tr);
-            });
+            scoreEl.setAttribute('data-ready', 'true');
         }
 
         window.addEventListener('DOMContentLoaded', startDiagnostic);

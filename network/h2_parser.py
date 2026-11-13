@@ -70,8 +70,8 @@ class HTTP2FrameParser:
                 if frame_type == H2_FRAME_SETTINGS and stream_id == 0:
                     for i in range(0, frame_len, 6):
                         if i + 6 <= frame_len:
-                            param_id, param_val = struct.unpack("!HI", payload[i:i + 6])
-                            settings_dict[param_id] = param_val
+                            kv_tuple: tuple[int, int] = struct.unpack("!HI", payload[i:i + 6])
+                            settings_dict[kv_tuple[0]] = kv_tuple[1]
 
                 elif frame_type == H2_FRAME_WINDOW_UPDATE:
                     if frame_len >= 4:
@@ -81,12 +81,14 @@ class HTTP2FrameParser:
 
                 elif frame_type == H2_FRAME_PRIORITY:
                     if frame_len >= 5:
-                        dep_stream_id, weight = struct.unpack("!IB", payload[:5])
+                        prio_tuple: tuple[int, int] = struct.unpack("!IB", payload[:5])
+                        dep_stream_id: int = prio_tuple[0]
+                        weight: int = prio_tuple[1]
                         exclusive: int = (dep_stream_id >> 31) & 0x01
                         dep_id: int = dep_stream_id & 0x7FFFFFFF
                         priority_val = f"{dep_id}:{exclusive}:{weight + 1}"
 
-                elif frame_type == H2_FRAME_HEADERS:
+                elif frame_type == H2_FRAME_HEADERS and not stream_headers_ended:
                     h_offset: int = 0
                     pad_length: int = 0
 
@@ -95,7 +97,9 @@ class HTTP2FrameParser:
                         h_offset += 1
 
                     if frame_flags & H2_FLAG_PRIORITY:
-                        dep_stream_id, weight = struct.unpack("!IB", payload[h_offset:h_offset + 5])
+                        h_prio_tuple: tuple[int, int] = struct.unpack("!IB", payload[h_offset:h_offset + 5])
+                        dep_stream_id = h_prio_tuple[0]
+                        weight = h_prio_tuple[1]
                         exclusive = (dep_stream_id >> 31) & 0x01
                         dep_id = dep_stream_id & 0x7FFFFFFF
                         priority_val = f"{dep_id}:{exclusive}:{weight + 1}"
@@ -108,7 +112,7 @@ class HTTP2FrameParser:
                     if frame_flags & H2_FLAG_END_HEADERS:
                         stream_headers_ended = True
 
-                elif frame_type == H2_FRAME_CONTINUATION:
+                elif frame_type == H2_FRAME_CONTINUATION and not stream_headers_ended:
                     raw_headers_block.extend(payload)
                     if frame_flags & H2_FLAG_END_HEADERS:
                         stream_headers_ended = True
@@ -119,7 +123,7 @@ class HTTP2FrameParser:
 
             if raw_headers_block:
                 hpack_decoder: Decoder = Decoder()
-                decoded_headers: list[tuple[Any, Any]] = hpack_decoder.decode(bytes(raw_headers_block))
+                decoded_headers: list[tuple[Any, Any]] = list(hpack_decoder.decode(bytes(raw_headers_block)))
 
                 for name_raw, val_raw in decoded_headers:
                     name_str: str = (
@@ -160,7 +164,7 @@ class HTTP2FrameParser:
             akamai_str: str = f"{settings_formatted}|{window_update_formatted}|{priority_formatted}|{pseudo_formatted}"
             akamai_hash: str = hashlib.md5(akamai_str.encode("utf-8")).hexdigest()
 
-            method_val: str = headers_map.get(":method", "ge").upper()[:2]
+            method_val: str = headers_map.get(":method", "ge").lower()[:2]
             h2_version_tag: str = "20"
             cookie_tag: str = "c" if "cookie" in headers_map else "n"
             referer_tag: str = "r" if "referer" in headers_map else "n"
@@ -201,5 +205,5 @@ class HTTP2FrameParser:
             )
 
         except Exception as exc:
-            logger.error(f"Непредвиденный сбой при декодировании HTTP/2 фреймов: {exc}", exc_info=True)
+            logger.error(f"Unexpected HTTP/2 frame decoder error: {exc}", exc_info=True)
             return None

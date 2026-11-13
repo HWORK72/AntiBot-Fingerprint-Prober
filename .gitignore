@@ -1,16 +1,13 @@
-# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 
-# C extensions
 *.obj
 *.o
 *.a
 *.lib
 
-# Virtual Environments
 .venv/
 venv/
 ENV/
@@ -18,23 +15,19 @@ env/
 env.bak/
 venv.bak/
 
-# Environment variables & Secrets
 .env
 .env.*
 !.env.example
 
-# SSL Certificates & Private Keys
 certs/*.pem
 certs/*.key
 certs/*.crt
 
-# Databases & local caches
 *.sqlite3
 *.db
 antibot_pgdata/
 antibot_redisdata/
 
-# IDE & Editors
 .idea/
 .vscode/
 *.swp
@@ -44,20 +37,17 @@ antibot_redisdata/
 .pydevproject
 .settings/
 
-# OS generated files
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Logs & Debugging
 *.log
+logs.txt
 logs/
 
-# Testing & Coverage
 .pytest_cache/
 .coverage
 htmlcov/
 
-# Playwright artifacts
 test-results/
 playwright-report/

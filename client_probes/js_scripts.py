@@ -60,6 +60,13 @@ async function runBotProbes() {
         console.debug(dummyErr);
         payload.cdp_check.runtime_enable_leaks = stackModified;
 
+        const stackCheckErr = new Error('stack_leak');
+        const stackStr = String(stackCheckErr.stack || '');
+        const leakTokens = ['__playwright', '__puppeteer', 'UtilityScript', 'pptr:'];
+        if (leakTokens.some(token => stackStr.includes(token))) {
+            payload.cdp_check.stack_trace_anomaly = true;
+        }
+
         const nativeToString = Function.prototype.toString.call(Function.prototype.toString);
         if (!nativeToString.includes('[native code]')) {
             payload.cdp_check.native_fn_tampered = true;
@@ -102,6 +109,59 @@ async function runBotProbes() {
             const snap2 = c2d.toDataURL();
             if (snap1 !== snap2) {
                 payload.canvas.noise_detected = true;
+            }
+        }
+
+        const gCanvas = document.createElement('canvas');
+        gCanvas.width = 120;
+        gCanvas.height = 60;
+        const gCtx = gCanvas.getContext('2d');
+        if (gCtx) {
+            gCtx.fillStyle = '#f60';
+            gCtx.fillRect(10, 10, 40, 20);
+            gCtx.beginPath();
+            gCtx.arc(60, 30, 18, 0, Math.PI * 2, true);
+            gCtx.closePath();
+            gCtx.fillStyle = '#069';
+            gCtx.fill();
+            payload.canvas.geometry_hash = gCanvas.toDataURL().slice(-32);
+        }
+    } catch (e) {}
+
+    try {
+        const AudioCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        if (AudioCtx) {
+            const audioCtx = new AudioCtx(1, 44100, 44100);
+            payload.audio.sample_rate = audioCtx.sampleRate || 0;
+            payload.audio.state = audioCtx.state || '';
+            payload.audio.max_channel_count = audioCtx.destination ? audioCtx.destination.maxChannelCount : 0;
+
+            const oscillator = audioCtx.createOscillator();
+            oscillator.type = 'triangle';
+            oscillator.frequency.setValueAtTime(10000, audioCtx.currentTime);
+
+            const compressor = audioCtx.createDynamicsCompressor();
+            compressor.threshold.setValueAtTime(-50, audioCtx.currentTime);
+            compressor.knee.setValueAtTime(40, audioCtx.currentTime);
+            compressor.ratio.setValueAtTime(12, audioCtx.currentTime);
+            compressor.attack.setValueAtTime(0, audioCtx.currentTime);
+            compressor.release.setValueAtTime(0.25, audioCtx.currentTime);
+
+            oscillator.connect(compressor);
+            compressor.connect(audioCtx.destination);
+            oscillator.start(0);
+
+            const renderPromise = audioCtx.startRendering();
+            const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 400));
+            const renderedBuffer = await Promise.race([renderPromise, timeoutPromise]);
+
+            if (renderedBuffer) {
+                const channelData = renderedBuffer.getChannelData(0);
+                let sum = 0;
+                for (let i = 4500; i < 5000; i++) {
+                    sum += Math.abs(channelData[i]);
+                }
+                payload.audio.oscillator_hash = sum.toFixed(10);
             }
         }
     } catch (e) {}

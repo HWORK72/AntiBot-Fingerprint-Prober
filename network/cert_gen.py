@@ -5,6 +5,7 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.x509.oid import NameOID
 from core.logger import logger
 
@@ -20,15 +21,15 @@ def ensure_ssl_certificates() -> tuple[Path, Path]:
         if CERT_FILE.exists() and KEY_FILE.exists():
             return CERT_FILE, KEY_FILE
 
-        logger.info("Генерация локального самоподписанного SSL-сертификата для HTTPS/TLS инспектора...")
+        logger.info("Generating local self-signed SSL certificates for HTTPS/TLS inspection...")
 
-        private_key = rsa.generate_private_key(
+        private_key: RSAPrivateKey = rsa.generate_private_key(
             public_exponent=65537,
             key_size=2048,
             backend=default_backend()
         )
 
-        subject = issuer = x509.Name([
+        subject: x509.Name = x509.Name([
             x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
             x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Local"),
             x509.NameAttribute(NameOID.LOCALITY_NAME, "DevLab"),
@@ -36,10 +37,10 @@ def ensure_ssl_certificates() -> tuple[Path, Path]:
             x509.NameAttribute(NameOID.COMMON_NAME, "localhost"),
         ])
 
-        cert = (
+        cert: x509.Certificate = (
             x509.CertificateBuilder()
             .subject_name(subject)
-            .issuer_name(issuer)
+            .issuer_name(subject)
             .public_key(private_key.public_key())
             .serial_number(x509.random_serial_number())
             .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
@@ -63,10 +64,10 @@ def ensure_ssl_certificates() -> tuple[Path, Path]:
         )
 
         CERT_FILE.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
-        logger.info(f"SSL-сертификаты сгенерированы: {CERT_FILE} и {KEY_FILE}")
+        logger.info(f"SSL certificates generated at {CERT_FILE} and {KEY_FILE}")
 
         return CERT_FILE, KEY_FILE
 
     except Exception as exc:
-        logger.critical(f"Сбой при создании SSL-сертификатов: {exc}", exc_info=True)
+        logger.critical(f"Failed to generate SSL certificates: {exc}", exc_info=True)
         raise exc

@@ -1,4 +1,5 @@
 import hashlib
+import ipaddress
 import struct
 from pydantic import BaseModel, Field
 from core.logger import logger
@@ -33,13 +34,25 @@ class TLSClientHelloParser:
     def is_grease(val: int) -> bool:
         return val in GREASE_VALUES or (val & 0x0F0F == 0x0A0A and ((val >> 8) & 0xFF) == (val & 0xFF))
 
+    @staticmethod
+    def _is_ip_literal(hostname: str | None) -> bool:
+        if not hostname:
+            return True
+        try:
+            ipaddress.ip_address(hostname)
+            return True
+        except ValueError:
+            return False
+
     @classmethod
     def parse(cls, raw_bytes: bytes) -> TLSFingerprint | None:
         try:
             if len(raw_bytes) < 5:
                 return None
 
-            content_type, legacy_version, length = struct.unpack("!BHH", raw_bytes[:5])
+            record_header: tuple[int, int, int] = struct.unpack("!BHH", raw_bytes[:5])
+            content_type: int = record_header[0]
+            length: int = record_header[2]
             if content_type != 0x16:
                 return None
 
@@ -55,12 +68,11 @@ class TLSClientHelloParser:
             handshake_body: bytes = payload[4:4 + handshake_len]
 
             offset: int = 0
-            if len(handshake_body) < 2 + 32 + 1:
+            if len(handshake_body) < 35:
                 return None
 
             client_version: int = struct.unpack("!H", handshake_body[offset:offset + 2])[0]
-            offset += 2
-            offset += 32
+            offset += 34
 
             session_id_len: int = handshake_body[offset]
             offset += 1 + session_id_len
@@ -75,11 +87,12 @@ class TLSClientHelloParser:
             grease_detected: bool = False
 
             for i in range(0, cipher_suites_len, 2):
-                cs: int = struct.unpack("!H", handshake_body[offset + i:offset + i + 2])[0]
-                if cls.is_grease(cs):
-                    grease_detected = True
-                else:
-                    raw_ciphers.append(cs)
+                if offset + i + 2 <= len(handshake_body):
+                    cs: int = struct.unpack("!H", handshake_body[offset + i:offset + i + 2])[0]
+                    if cls.is_grease(cs):
+                        grease_detected = True
+                    else:
+                        raw_ciphers.append(cs)
 
             offset += cipher_suites_len
 
@@ -103,7 +116,9 @@ class TLSClientHelloParser:
                 ext_end: int = offset + extensions_total_len
 
                 while offset + 4 <= ext_end and offset + 4 <= len(handshake_body):
-                    ext_type, ext_len = struct.unpack("!HH", handshake_body[offset:offset + 4])
+                    ext_header: tuple[int, int] = struct.unpack("!HH", handshake_body[offset:offset + 4])
+                    ext_type: int = ext_header[0]
+                    ext_len: int = ext_header[1]
                     offset += 4
                     ext_data: bytes = handshake_body[offset:offset + ext_len]
                     offset += ext_len
@@ -116,7 +131,6 @@ class TLSClientHelloParser:
 
                     if ext_type == 0x0000:
                         if len(ext_data) >= 5:
-                            sni_list_len: int = struct.unpack("!H", ext_data[0:2])[0]
                             sni_offset: int = 2
                             while sni_offset + 3 <= len(ext_data):
                                 name_type: int = ext_data[sni_offset]
@@ -186,18 +200,19 @@ class TLSClientHelloParser:
             ja3_hash: str = hashlib.md5(ja3_str.encode("utf-8")).hexdigest()
 
             protocol_char: str = "t"
-            if 0x0304 in supported_tls_versions:
+            highest_ver: int = max(supported_tls_versions) if supported_tls_versions else client_version
+            if highest_ver == 0x0304:
                 tls_ver_str: str = "13"
-            elif client_version == 0x0303:
-                tls_ver_str: str = "12"
-            elif client_version == 0x0302:
-                tls_ver_str: str = "11"
-            elif client_version == 0x0301:
-                tls_ver_str: str = "10"
+            elif highest_ver == 0x0303:
+                tls_ver_str = "12"
+            elif highest_ver == 0x0302:
+                tls_ver_str = "11"
+            elif highest_ver == 0x0301:
+                tls_ver_str = "10"
             else:
-                tls_ver_str: str = "00"
+                tls_ver_str = "00"
 
-            sni_indicator: str = "d" if sni else "i"
+            sni_indicator: str = "i" if cls._is_ip_literal(sni) else "d"
             ciphers_count_str: str = f"{min(len(raw_ciphers), 99):02d}"
 
             ja4_exts: list[int] = [ext for ext in raw_extensions if ext not in (0x0000, 0x0010)]
@@ -218,8 +233,11 @@ class TLSClientHelloParser:
             sorted_exts_hex: list[str] = [f"{e:04x}" for e in sorted(ja4_exts)]
             exts_payload: str = ",".join(sorted_exts_hex)
             if sig_algs:
-                sigs_payload: str = "_".join(f"{s:04x}" for s in sig_algs)
-                exts_payload = f"{exts_payload}_{sigs_payload}"
+                sigs_payload: str = ",".join(f"{s:04x}" for s in sig_algs)
+                if exts_payload:
+                    exts_payload = f"{exts_payload}_{sigs_payload}"
+                else:
+                    exts_payload = sigs_payload
 
             ja4_c: str = hashlib.sha256(exts_payload.encode("utf-8")).hexdigest()[:12] if exts_payload else "000000000000"
 
@@ -243,5 +261,5 @@ class TLSClientHelloParser:
             )
 
         except Exception as exc:
-            logger.error(f"Непредвиденный сбой при парсинге TLS Client Hello: {exc}", exc_info=True)
+            logger.error(f"Unexpected TLS Client Hello dissector error: {exc}", exc_info=True)
             return None

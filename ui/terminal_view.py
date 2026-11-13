@@ -30,6 +30,7 @@ class TerminalPresenter:
         ja3_display: str = tls.ja3 if tls else "N/A (Plain HTTP / Terminated)"
         ja4_display: str = tls.ja4 if tls else "N/A (Plain HTTP / Terminated)"
         grease_display: str = str(tls.is_grease_present) if tls else "N/A"
+        lua_findings_summary: str = f"{len(assessment.lua_findings)} triggered" if assessment.lua_findings else "Clean"
 
         summary_text: str = (
             f"[bold white]Client Host:[/bold white] [cyan]{client_ip}[/cyan]\n"
@@ -38,10 +39,12 @@ class TerminalPresenter:
             f"[bold white]Diagnostic Verdict:[/bold white] [{status_style}]{assessment.status}[/{status_style}]\n"
             f"[bold white]Critical Triggers:[/bold white] [red]{assessment.critical_triggers_count}[/red] | "
             f"[bold white]Total Penalties:[/bold white] [red]-{assessment.total_penalties} pts[/red]\n\n"
-            f"[bold magenta]=== EXTRACTED TLS/L5 FINGERPRINTS ===[/bold magenta]\n"
+            f"[bold magenta]=== EXTRACTED TLS/L5 & LUA TELEMETRY ===[/bold magenta]\n"
             f"[bold white]JA3 Hash (MD5):[/bold white] [green]{ja3_display}[/green]\n"
             f"[bold white]JA4 Fingerprint:[/bold white] [bold green]{ja4_display}[/bold green]\n"
-            f"[bold white]RFC 8701 GREASE Detected:[/bold white] [yellow]{grease_display}[/yellow]"
+            f"[bold white]RFC 8701 GREASE Detected:[/bold white] [yellow]{grease_display}[/yellow]\n"
+            f"[bold white]Lua Edge Profile:[/bold white] [cyan]{assessment.lua_profile}[/cyan] | "
+            f"[bold white]Lua Rules:[/bold white] [yellow]{lua_findings_summary}[/yellow]"
         )
 
         console.print()

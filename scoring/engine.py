@@ -8,6 +8,7 @@ from client_probes.environment_probe import EnvironmentAnalyzer, EnvironmentVerd
 from scoring.rules import PENALTY_REGISTRY, RiskSeverity, PenaltyRule
 from scoring.advisor import RemediationAdvisor
 from scoring.schemas import StealthAssessment, DetectedAnomaly
+from scoring.lua_bridge import lua_rule_engine, LuaEvaluationResult
 
 
 class ScoringEngine:
@@ -19,7 +20,9 @@ class ScoringEngine:
         h2: H2Fingerprint | None,
         tcp: TCPMetrics | None,
         client: ClientProbePayload | None,
-        claimed_user_agent: str
+        claimed_user_agent: str,
+        headers: dict[str, str] | None = None,
+        is_websocket: bool = False
     ) -> StealthAssessment:
         applied_rules: list[PenaltyRule] = []
 
@@ -39,32 +42,55 @@ class ScoringEngine:
             if tcp.is_os_mismatch:
                 applied_rules.append(PENALTY_REGISTRY["TCP_OS_MISMATCH"])
 
+        webgl_renderer_str: str = ""
         if client:
+            webgl_renderer_str = client.webgl.unmasked_renderer
+
             cdp_res: CDPVerdict = CDPAnalyzer.inspect(client.cdp_check)
-            if client.cdp_check.runtime_enable_leaks:
-                applied_rules.append(PENALTY_REGISTRY["CDP_RUNTIME_ENABLE"])
-            if client.cdp_check.cdc_markers_found:
-                applied_rules.append(PENALTY_REGISTRY["CDP_CDC_MARKERS"])
-            if client.cdp_check.native_fn_tampered:
-                applied_rules.append(PENALTY_REGISTRY["NATIVE_FN_TAMPERED"])
+            if cdp_res.is_bot_detected:
+                if client.cdp_check.runtime_enable_leaks:
+                    applied_rules.append(PENALTY_REGISTRY["CDP_RUNTIME_ENABLE"])
+                if client.cdp_check.cdc_markers_found:
+                    applied_rules.append(PENALTY_REGISTRY["CDP_CDC_MARKERS"])
+                if client.cdp_check.stack_trace_anomaly:
+                    applied_rules.append(PENALTY_REGISTRY["CDP_STACK_ANOMALY"])
+                if client.cdp_check.native_fn_tampered:
+                    applied_rules.append(PENALTY_REGISTRY["NATIVE_FN_TAMPERED"])
 
             hw_res: HardwareVerdict = HardwareAnalyzer.inspect(client.webgl, client.audio, client.canvas)
             if hw_res.is_virtual_hardware:
                 applied_rules.append(PENALTY_REGISTRY["VIRTUAL_GPU_SWIFTSHADER"])
             if hw_res.is_canvas_manipulated:
                 applied_rules.append(PENALTY_REGISTRY["CANVAS_POISONING"])
+            if hw_res.is_audio_anomalous:
+                applied_rules.append(PENALTY_REGISTRY["AUDIO_ANOMALY"])
 
             env_res: EnvironmentVerdict = EnvironmentAnalyzer.inspect(
                 client.webdriver_flag,
                 client.plugins_length,
                 client.worker_check
             )
-            if client.webdriver_flag:
-                applied_rules.append(PENALTY_REGISTRY["WEBDRIVER_ACTIVE"])
-            if client.plugins_length == 0:
-                applied_rules.append(PENALTY_REGISTRY["ZERO_PLUGINS"])
-            if not client.worker_check.user_agent_match:
-                applied_rules.append(PENALTY_REGISTRY["WORKER_UA_MISMATCH"])
+            if env_res.is_inconsistent:
+                if client.webdriver_flag:
+                    applied_rules.append(PENALTY_REGISTRY["WEBDRIVER_ACTIVE"])
+                if client.plugins_length == 0:
+                    applied_rules.append(PENALTY_REGISTRY["ZERO_PLUGINS"])
+                if not client.worker_check.user_agent_match:
+                    applied_rules.append(PENALTY_REGISTRY["WORKER_UA_MISMATCH"])
+
+        lua_result: LuaEvaluationResult = lua_rule_engine.evaluate(
+            claimed_ua=claimed_user_agent,
+            headers=headers,
+            tls=tls,
+            is_websocket=is_websocket,
+            webgl_renderer=webgl_renderer_str
+        )
+
+        lua_finding_details: list[str] = []
+        for lua_finding in lua_result.findings:
+            lua_finding_details.append(f"[{lua_finding.rule_id}] {lua_finding.detail}")
+            if lua_finding.rule_id in PENALTY_REGISTRY:
+                applied_rules.append(PENALTY_REGISTRY[lua_finding.rule_id])
 
         total_penalty: int = 0
         has_critical: bool = False
@@ -112,5 +138,10 @@ class ScoringEngine:
             status=status_verdict,
             total_penalties=total_penalty,
             critical_triggers_count=critical_count,
+            tls_ja3=tls.ja3 if tls else None,
+            tls_ja4=tls.ja4 if tls else None,
+            tls_grease=tls.is_grease_present if tls else None,
+            lua_profile=lua_result.tls_profile if lua_result.engine_active else "DISABLED",
+            lua_findings=lua_finding_details,
             anomalies=anomalies_list
         )

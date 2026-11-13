@@ -3,8 +3,8 @@ from fastapi import APIRouter, BackgroundTasks, Request, WebSocket
 from fastapi.responses import HTMLResponse
 from core.config import settings
 from client_probes.js_scripts import PROBE_JS_SCRIPT
-from client_probes.schemas import ClientProbePayload
-from scoring.engine import ScoringEngine, StealthAssessment
+from scoring.engine import ScoringEngine
+from scoring.schemas import StealthAssessment
 from api.schemas import FastInspectResponse, HealthResponse, ProbeRequest
 from api.websocket import WebSocketManager
 from ui.terminal_view import TerminalPresenter
@@ -32,6 +32,7 @@ async def submit_probe(
     background_tasks: BackgroundTasks
 ) -> StealthAssessment:
     client_ip: str = request.client.host if request.client else "127.0.0.1"
+    headers_dict: dict[str, str] = dict(request.headers)
     ua: str = body.client_payload.user_agent
     tls_info: TLSFingerprint | None = await state_broker.get_tls_fingerprint(client_ip)
 
@@ -40,7 +41,9 @@ async def submit_probe(
         h2=None,
         tcp=None,
         client=body.client_payload,
-        claimed_user_agent=ua
+        claimed_user_agent=ua,
+        headers=headers_dict,
+        is_websocket=False
     )
 
     TerminalPresenter.render_assessment(
@@ -77,7 +80,9 @@ async def inspect_fast(
         h2=None,
         tcp=None,
         client=None,
-        claimed_user_agent=ua
+        claimed_user_agent=ua,
+        headers=headers_dict,
+        is_websocket=False
     )
 
     TerminalPresenter.render_assessment(

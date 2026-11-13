@@ -16,6 +16,7 @@ SUSPICIOUS_RENDERERS: tuple[str, ...] = (
 class HardwareVerdict(BaseModel):
     is_virtual_hardware: bool = Field(default=False)
     is_canvas_manipulated: bool = Field(default=False)
+    is_audio_anomalous: bool = Field(default=False)
     anomalies: list[str] = Field(default_factory=list)
 
 
@@ -25,6 +26,7 @@ class HardwareAnalyzer:
     def inspect(cls, webgl: WebGLReport, audio: AudioContextReport, canvas: CanvasReport) -> HardwareVerdict:
         anomalies: list[str] = []
         is_vm: bool = False
+        is_audio_bad: bool = False
 
         renderer_lower: str = webgl.unmasked_renderer.lower()
         vendor_lower: str = webgl.unmasked_vendor.lower()
@@ -42,10 +44,12 @@ class HardwareAnalyzer:
             anomalies.append("Dynamic canvas noise randomization detected (Canvas Poisoning)")
 
         if audio.sample_rate not in (44100.0, 48000.0, 96000.0) and audio.sample_rate != 0.0:
+            is_audio_bad = True
             anomalies.append(f"Anomalous AudioContext sample rate ({audio.sample_rate} Hz)")
 
         return HardwareVerdict(
             is_virtual_hardware=is_vm,
             is_canvas_manipulated=canvas.noise_detected,
+            is_audio_anomalous=is_audio_bad,
             anomalies=anomalies
         )

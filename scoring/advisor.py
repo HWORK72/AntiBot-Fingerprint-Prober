@@ -1,6 +1,3 @@
-from scoring.rules import RiskSeverity
-
-
 class RemediationAdvisor:
 
     @staticmethod
@@ -18,6 +15,10 @@ class RemediationAdvisor:
                 "Patch the ChromeDriver binary in a hex editor replacing 'cdc_' prefixes "
                 "with randomized alphanumeric sequences, or transition to Playwright with custom CDP."
             ),
+            "CDP_STACK_ANOMALY": (
+                "Execute page evaluations inside an isolated world or sanitize injected runner scripts "
+                "to remove UtilityScript and automation bindings from V8 call stacks."
+            ),
             "VIRTUAL_GPU_SWIFTSHADER": (
                 "Execute the browser on hardware with a physical/integrated GPU, or pass: "
                 "'--use-gl=angle', '--use-angle=default'. On Linux servers configure a hardware-accelerated Xvfb buffer."
@@ -29,6 +30,22 @@ class RemediationAdvisor:
             "H2_PSEUDO_ORDER_ANOMALY": (
                 "Enforce strict HTTP/2 pseudo-header serialization: ':method', ':authority', ':scheme', ':path'. "
                 "In curl_cffi this ordering is handled natively by the curl-impersonate backend."
+            ),
+            "LUA_PYTHON_CLIENT_HEADERS": (
+                "Eliminate default library User-Agent tokens and supply complete browser Accept, "
+                "Accept-Language, and Sec-Fetch-* header suites."
+            ),
+            "LUA_MISSING_CLIENT_HINTS": (
+                "Include Sec-CH-UA, Sec-CH-UA-Mobile, Sec-CH-UA-Platform, and Sec-Fetch-* headers "
+                "matching your declared Chrome User-Agent version."
+            ),
+            "LUA_USER_AGENT_WEBGL_OS_MISMATCH": (
+                "Align claimed OS in User-Agent with the host GPU vendor/renderer API "
+                "(Direct3D11 for Windows vs Metal/Apple GPU for macOS)."
+            ),
+            "LUA_TLS_NON_BROWSER_PROFILE": (
+                "Use curl-impersonate or a real browser engine so ALPN h2 negotiation and cipher counts "
+                "align with the claimed desktop browser profile."
             ),
             "WORKER_UA_MISMATCH": (
                 "Hook 'window.Worker' constructor via Proxy to inject the overridden User-Agent "
@@ -45,6 +62,9 @@ class RemediationAdvisor:
             "CANVAS_POISONING": (
                 "Disable canvas noise randomizers (e.g. Fingerprint Defender extensions). "
                 "A stable, consistent hardware canvas hash is significantly safer than unstable dynamic noise."
+            ),
+            "AUDIO_ANOMALY": (
+                "Avoid disabling WebAudio entirely; ensure standard 44100 Hz or 48000 Hz sampleRate outputs."
             ),
             "ZERO_PLUGINS": (
                 "Mock navigator.plugins and navigator.mimeTypes arrays adhering to official Chrome PDF Viewer specs."

@@ -17,25 +17,22 @@ class TLSSnifferProxy:
         client_reader: asyncio.StreamReader,
         client_writer: asyncio.StreamWriter
     ) -> None:
-        client_peer = client_writer.get_extra_info("peername")
+        client_peer: tuple[str, int] | None = client_writer.get_extra_info("peername")
         client_ip: str = client_peer[0] if client_peer else "127.0.0.1"
-
         upstream_writer: asyncio.StreamWriter | None = None
 
         try:
-            initial_packet: bytes = await client_reader.read(4096)
+            initial_packet: bytes = await asyncio.wait_for(client_reader.read(4096), timeout=10.0)
             if not initial_packet:
-                client_writer.close()
-                await client_writer.wait_closed()
                 return
 
             fingerprint: TLSFingerprint | None = TLSClientHelloParser.parse(initial_packet)
             if fingerprint:
                 await state_broker.store_tls_fingerprint(client_ip, fingerprint)
 
-            upstream_reader, upstream_writer = await asyncio.open_connection(
-                host="127.0.0.1",
-                port=self.target_port
+            upstream_reader, upstream_writer = await asyncio.wait_for(
+                asyncio.open_connection(host="127.0.0.1", port=self.target_port),
+                timeout=5.0
             )
 
             upstream_writer.write(initial_packet)
@@ -46,17 +43,15 @@ class TLSSnifferProxy:
                     while True:
                         chunk: bytes = await reader.read(8192)
                         if not chunk:
+                            if writer.can_write_eof():
+                                writer.write_eof()
                             break
                         writer.write(chunk)
                         await writer.drain()
-                except Exception:
+                except (ConnectionResetError, BrokenPipeError, asyncio.CancelledError):
                     pass
-                finally:
-                    try:
-                        writer.close()
-                        await writer.wait_closed()
-                    except Exception:
-                        pass
+                except Exception as relay_exc:
+                    logger.debug(f"Stream relay notice for {client_ip}: {relay_exc}")
 
             await asyncio.gather(
                 relay(client_reader, upstream_writer),
@@ -64,15 +59,20 @@ class TLSSnifferProxy:
                 return_exceptions=True
             )
 
+        except asyncio.TimeoutError:
+            logger.warning(f"TLS handshake read timeout from client {client_ip}")
+        except asyncio.CancelledError:
+            pass
         except Exception as exc:
-            logger.error(f"Сбой в TLS Sniffer для клиента {client_ip}: {exc}")
+            logger.error(f"TLS Sniffer connection error for {client_ip}: {exc}")
         finally:
-            try:
-                client_writer.close()
-                await client_writer.wait_closed()
-            except Exception:
-                pass
-            if upstream_writer:
+            if not client_writer.is_closing():
+                try:
+                    client_writer.close()
+                    await client_writer.wait_closed()
+                except Exception:
+                    pass
+            if upstream_writer and not upstream_writer.is_closing():
                 try:
                     upstream_writer.close()
                     await upstream_writer.wait_closed()
@@ -85,10 +85,11 @@ class TLSSnifferProxy:
             self.listen_host,
             self.listen_port
         )
-        logger.info(f"TLS prober active on [bold cyan]https://{self.listen_host}:{self.listen_port}[/bold cyan] -> Relay to :{self.target_port}")
+        logger.info(f"TLS prober active on https://{self.listen_host}:{self.listen_port} -> Relay to :{self.target_port}")
 
     async def stop(self) -> None:
         if self.server:
             self.server.close()
             await self.server.wait_closed()
-            logger.info("TLS-инспектор остановлен.")
+            self.server = None
+            logger.info("TLS prober stopped.")

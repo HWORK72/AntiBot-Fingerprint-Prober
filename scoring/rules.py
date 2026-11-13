@@ -1,5 +1,5 @@
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class RiskSeverity(str, Enum):
@@ -46,6 +46,13 @@ PENALTY_REGISTRY: dict[str, PenaltyRule] = {
         title="Software GPU Virtualization (SwiftShader/llvmpipe)",
         description="WebGL is executing on CPU software rasterizers without physical or discrete graphics hardware."
     ),
+    "CDP_STACK_ANOMALY": PenaltyRule(
+        rule_id="CDP_STACK_ANOMALY",
+        severity=RiskSeverity.HIGH,
+        penalty_score=80,
+        title="V8 Automation Stack-Trace Artifact",
+        description="Error.stack contains injected runner evaluation frame tokens (__playwright, UtilityScript, pptr)."
+    ),
     "TLS_GREASE_ABSENT_CHROME": PenaltyRule(
         rule_id="TLS_GREASE_ABSENT_CHROME",
         severity=RiskSeverity.HIGH,
@@ -59,6 +66,13 @@ PENALTY_REGISTRY: dict[str, PenaltyRule] = {
         penalty_score=60,
         title="Non-Standard HTTP/2 Pseudo-Header Sequence",
         description="Chrome strictly transmits :method, :authority, :scheme, :path. Deviation reveals Python h2/httpx stack."
+    ),
+    "LUA_PYTHON_CLIENT_HEADERS": PenaltyRule(
+        rule_id="LUA_PYTHON_CLIENT_HEADERS",
+        severity=RiskSeverity.HIGH,
+        penalty_score=50,
+        title="Lua L7 Signature: Programmatic HTTP Client Headers",
+        description="Lua edge rule detected automated library tokens or bare default Accept: */* headers."
     ),
     "WORKER_UA_MISMATCH": PenaltyRule(
         rule_id="WORKER_UA_MISMATCH",
@@ -74,6 +88,20 @@ PENALTY_REGISTRY: dict[str, PenaltyRule] = {
         title="Function.prototype.toString Tampering Detected",
         description="Detected improper proxy trap or polyfill hiding hooked browser native methods."
     ),
+    "LUA_USER_AGENT_WEBGL_OS_MISMATCH": PenaltyRule(
+        rule_id="LUA_USER_AGENT_WEBGL_OS_MISMATCH",
+        severity=RiskSeverity.HIGH,
+        penalty_score=45,
+        title="Lua Cross-Layer Check: UA OS vs WebGL Hardware Mismatch",
+        description="Lua heuristic caught hardware GPU API exclusive to a different operating system than claimed User-Agent."
+    ),
+    "LUA_TLS_NON_BROWSER_PROFILE": PenaltyRule(
+        rule_id="LUA_TLS_NON_BROWSER_PROFILE",
+        severity=RiskSeverity.MEDIUM,
+        penalty_score=35,
+        title="Lua Signature Engine: Non-Browser TLS Handshake Profile",
+        description="Lua signature matcher flagged mismatch between claimed browser UA and TLS ALPN/cipher metrics."
+    ),
     "TCP_OS_MISMATCH": PenaltyRule(
         rule_id="TCP_OS_MISMATCH",
         severity=RiskSeverity.MEDIUM,
@@ -88,11 +116,25 @@ PENALTY_REGISTRY: dict[str, PenaltyRule] = {
         title="Canvas Fingerprint Poisoning / Random Noise",
         description="Inconsistent canvas render hashes captured across repeated draws. Triggers anti-fraud evasion alarms."
     ),
+    "LUA_MISSING_CLIENT_HINTS": PenaltyRule(
+        rule_id="LUA_MISSING_CLIENT_HINTS",
+        severity=RiskSeverity.MEDIUM,
+        penalty_score=25,
+        title="Lua L7 Rule: Missing Sec-CH-UA Client Hints",
+        description="Claimed modern Chromium User-Agent lacks mandatory Sec-CH-UA and Sec-Fetch-* security headers."
+    ),
+    "AUDIO_ANOMALY": PenaltyRule(
+        rule_id="AUDIO_ANOMALY",
+        severity=RiskSeverity.MEDIUM,
+        penalty_score=20,
+        title="AudioContext Sample Rate / Node Anomaly",
+        description="Detected non-standard hardware sample rate or missing AudioContext destination pipeline."
+    ),
     "ZERO_PLUGINS": PenaltyRule(
         rule_id="ZERO_PLUGINS",
         severity=RiskSeverity.LOW,
         penalty_score=15,
         title="Empty navigator.plugins Array",
-        description="Modern desktop desktop browsers expose default PDF and viewer plugins. Typical of raw Headless builds."
+        description="Modern desktop browsers expose default PDF and viewer plugins. Typical of raw Headless builds."
     ),
 }

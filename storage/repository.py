@@ -22,7 +22,7 @@ class ScanResultRepository:
 
         try:
             async with db_manager.session_factory() as session:
-                session_record = ScanSession(
+                session_record: ScanSession = ScanSession(
                     client_ip=client_ip,
                     user_agent=user_agent,
                     stealth_score=assessment.stealth_score,
@@ -37,7 +37,7 @@ class ScanResultRepository:
                 await session.flush()
 
                 for anomaly in assessment.anomalies:
-                    anomaly_record = DetectedAnomalyRecord(
+                    anomaly_record: DetectedAnomalyRecord = DetectedAnomalyRecord(
                         session_id=session_record.id,
                         rule_id=anomaly.rule_id,
                         severity=anomaly.severity.value,
@@ -52,5 +52,5 @@ class ScanResultRepository:
                 return session_record.id
 
         except Exception as exc:
-            logger.error(f"Не удалось зафиксировать отчет в базе данных: {exc}", exc_info=True)
+            logger.error(f"Failed to persist scan report to database: {exc}", exc_info=True)
             return None

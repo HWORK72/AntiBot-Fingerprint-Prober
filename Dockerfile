@@ -26,33 +26,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2 \
     && rm -rf /var/lib/apt/lists/*
 
+COPY requirements.txt /app/requirements.txt
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r /app/requirements.txt && \
+    playwright install --with-deps chromium
+
 COPY core/ /app/core/
 COPY network/ /app/network/
 COPY client_probes/ /app/client_probes/
+COPY lua_engine/ /app/lua_engine/
 COPY scoring/ /app/scoring/
 COPY storage/ /app/storage/
 COPY api/ /app/api/
 COPY ui/ /app/ui/
 COPY benchmark/ /app/benchmark/
 COPY main.py /app/main.py
-
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir \
-    pydantic \
-    pydantic-settings \
-    python-dotenv \
-    rich \
-    hpack \
-    fastapi \
-    "uvicorn[standard]" \
-    jinja2 \
-    cryptography \
-    sqlalchemy \
-    asyncpg \
-    redis \
-    curl_cffi \
-    playwright && \
-    playwright install --with-deps chromium
 
 EXPOSE 8000 8443
 

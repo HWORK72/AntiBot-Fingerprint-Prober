@@ -17,6 +17,7 @@ class AppSettings(BaseSettings):
     server_host: str = Field(default="127.0.0.1", alias="SERVER_HOST")
     http_port: int = Field(default=8000, alias="HTTP_PORT")
     tls_prober_port: int = Field(default=8443, alias="TLS_PROBER_PORT")
+    internal_tls_port: int = Field(default=8444, alias="INTERNAL_TLS_PORT")
 
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 

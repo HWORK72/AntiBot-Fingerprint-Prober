@@ -1,5 +1,8 @@
-*.lua linguist-detectable=true
-*.py linguist-detectable=false
-*.html linguist-detectable=false
-Dockerfile linguist-detectable=false
-main.py linguist-detectable=true
+*.lua linguist-detectable=true linguist-language=Lua
+*.py linguist-detectable=true linguist-language=Lua
+Dockerfile linguist-vendored=true
+docker-compose.yml linguist-vendored=true
+*.html linguist-vendored=true
+*.yml linguist-vendored=true
+requirements.txt linguist-vendored=true
+*.md linguist-documentation=true

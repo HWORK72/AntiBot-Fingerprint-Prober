@@ -1,2 +1,5 @@
 *.lua linguist-detectable=true
-*.py linguist-detectable=true
+*.py linguist-detectable=false
+*.html linguist-detectable=false
+Dockerfile linguist-detectable=false
+main.py linguist-detectable=true
